@@ -1,0 +1,11 @@
+--- 
+title: "Analysis of Asian-American Quality of Life"
+author: "Gokul Sunilkumar & Pooja Srinivasan"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+---
+
+# Introduction
+
+Surveys are a fantastic tool for gathering information on any particular subject. They can be employed to gauge the degree to which each person's thoughts and experiences are representative. When done correctly, surveys provide precise information about people's beliefs and actions that can be used to guide important decisions. It has been noted that many businesses are using qualified employees to analyze survey data in order to avoid missing important insights, minimize errors, produce detailed reports and for faster analysis. As future data scientists, it is necessary that such skills are developed. This is the rationale for our team's decision to analyze a survey dataset. "Asian American Quality of Life" is the dataset chosen for this study. 
+The motive to choose this topic is the rapid growth of the population of Asian Americans over the years to the point where they now make up a significant portion of the US population. It is obvious that studying this explosive growth will enable us to appreciate its current causes and potential future growth. One such factor is the Asian American community's social and health issues, which the study specifically attempts to investigate through the data. Through this project, satisfaction with life of quality, expectations for the near future, obstacles, and concerns will be investigated.

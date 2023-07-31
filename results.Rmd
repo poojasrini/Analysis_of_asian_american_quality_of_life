@@ -1,0 +1,501 @@
+# Results
+
+```{r}
+knitr::opts_chunk$set(
+  comment = "#>", echo = FALSE, fig.width = 5, fig.height = 4)
+```
+
+```{r load-packages}
+library(tidyverse)
+library(skimr)
+library(corrplot)
+library(vcd)
+library(extracat)
+library(GGally)
+library(ggalluvial)
+library(scales)
+library(dplyr)
+library(gridExtra)
+library(naniar)
+```
+
+```{r}
+data <- read_csv(here::here("data", "data.csv"))
+```
+
+
+```{r}
+# Drop columns that have more than 40% NA values
+data1 <- data.frame(data)
+data1 <- data1[, which(colMeans(!is.na(data)) > 0.40)]
+# Dropping "Survey ID" column
+data1 <- data1[, -which(names(data) %in% c("Survey ID"))]
+```
+
+
+```{r}
+# Finding the number of missing values in each column
+# data %>% 
+#   select(everything()) %>% 
+#   summarise_all(funs(sum(is.na(.))))
+```
+
+```{r}
+unique_df1 <-  drop_na(data1)
+```
+
+
+```{r}
+unique_df_mosaic <- unique_df1 %>% 
+  mutate(
+    # Create categories
+    Age_Group = dplyr::case_when(
+      Age <= 25            ~ "18-25",
+      Age > 25 & Age <= 50 ~ "26-50",
+      Age > 50 & Age <= 75 ~ "51-75",
+      Age > 75             ~ "> 75"
+    ),
+    # Convert to factor
+    Age_Group = factor(
+      Age_Group,
+      level = c("18-25", "26-50","51-75", "> 75")
+    )
+  )
+
+unique_df_rest <- data %>% 
+  mutate(
+    # Create categories
+    Age_Group = dplyr::case_when(
+      Age <= 25            ~ "18-25",
+      Age > 25 & Age <= 50 ~ "26-50",
+      Age > 50 & Age <= 75 ~ "51-75",
+      Age > 75             ~ "> 75"
+    ),
+    # Convert to factor
+    Age_Group = factor(
+      Age_Group,
+      level = c("18-25", "26-50","51-75", "> 75")
+    )
+  )
+```
+
+```{r}
+unique_df2 <-  unique_df_rest %>% drop_na("Ethnicity", "Age_Group")
+```
+
+```{r}
+# Finding columns with unique values (0, "text") and replaing "text" with 1
+find_and_encode <- function(column) {
+  if(is.character(column)) {
+    unique_column <- unique(unlist(as.list(column), use.names = FALSE))
+    if(length(unique_column) == 2 & sort(unique_column)[1] == "0") {
+      column <- replace(column, column != "0", "1")
+      class(column) = "numeric"
+      return(column)
+    }
+  }
+  return(column)
+}
+
+# This data frame consists of columns with unique values (0, "text") encoded as (0, 1)
+unique_df_encoded2 <- apply(unique_df2, 2, find_and_encode)
+unique_df_encoded1 <- apply(unique_df_mosaic, 2, find_and_encode)
+
+# Converting it from a matrix to a dataframe form
+unique_df_encoded1 <- as.data.frame(unique_df_encoded1)
+unique_df_encoded2 <- as.data.frame(unique_df_encoded2)
+
+```
+
+```{r}
+cols1 <- c("No.One", "Spouse", "Children", "Grand.Children", "Parent", "Grandparent", "Brother.Sister", "Other.Relative", "Friends",
+           "Other...17")
+cols2 <- c("Full Time Employment", "Part Time Employment", "Self Employed Full Time", "Self Employed Part Time", "Student",                  
+           "Homemaker", "Disabled", "Unemployed", "Retired", "Other Employement")
+
+unique_df_encoded1[,cols1] <- lapply(unique_df_encoded1[,cols1] , as.numeric)
+
+```
+
+
+
+```{r}
+unique_df_encoded1$`Close Blood Relation` <- unique_df_encoded1$Spouse + unique_df_encoded1$Children + unique_df_encoded1$`Grand.Children` + 
+  unique_df_encoded1$Parent+ unique_df_encoded1$Grandparent + unique_df_encoded1$`Brother.Sister` 
+
+unique_df_encoded1$`Others` <- unique_df_encoded1$`Other.Relative`+ unique_df_encoded1$`Friends`+ unique_df_encoded1$`Other...17`
+
+
+plot1 <- pivot_longer(unique_df_encoded1, cols = c("Close Blood Relation", "Others", "No.One"), names_to = "living_with" , values_to = "no_of_people")
+
+```
+
+## Does the people who we are living with have something to do with our mental health?
+
+
+```{r, fig.height=4, fig.width=9}
+# Plot 1
+plot1 <- subset(plot1, no_of_people != 0 )
+
+
+counts1 <- plot1[c("living_with", "Age_Group", "Present.Mental.Health")] %>% group_by(living_with, Age_Group, `Present.Mental.Health`) %>% 
+  summarise(Freq = n()) %>% 
+  ungroup() %>% 
+  complete(Age_Group, living_with, `Present.Mental.Health`, fill = list(Freq = 0))
+
+names(counts1) <- c("Age_Group", "living_with", "PresentMentalHealth", "Freq")
+
+counts1$Age_Group = factor(counts1$Age_Group, levels = c("18-25", "26-50", "51-75", "> 75"))
+counts1$PresentMentalHealth = factor(counts1$PresentMentalHealth, levels = c("Fair", "Good", "Very Good", "Excellent"))
+mosaic(PresentMentalHealth ~ Age_Group + living_with , data = counts1, direction = c("v", "v", "h"),
+       labeling_args = list(rot_labels = c(0, 90, 90, 0)),
+       labeling = labeling_border(abbreviate_labs = c(FALSE, 3, FALSE)),
+       main = "Age Group v/s People Living with v/s Present Mental Health")
+
+
+```
+Plot 1 is the analysis between age group, present mental health and the person they are living with. Mental health is a serious issue that can range from mild to severe, influencing a person's thinking, mood, and/or behaviour. As most of the respondents are immigrants, their mental health may have a role in determining their quality of life as they may choose to live away from home. It majorly depends on who they are surrounded by and live with. Along with this characteristic, age group also plays a role in today's society, with the young constituting the majority.
+The respondents in the age range of 25 to 50 had the highest number of responses, as shown by the graph, which is also shown in the data People who live close to their blood relatives typically have excellent or very good mental health. In the age group between 18-25 and 25-50 those living with no one and others tend to have a fair mental health which makes sense as this is the age range where people keep working and living with no one can lead to a breach in the mental health. 
+When living alone, many people over the age of 75 report that their mental health is outstanding; yet, when living among close blood relatives, it appears to deteriorate.
+
+## Is the survey unbiased: within each ethnicity, are people of all age brackets covered?
+
+```{r}
+# Plot 2
+
+# Plotting the stacked graph for overall age distribution of various ethnic groups(Push others to end)
+unique_df_encoded2$Age_Group <- factor(unique_df_encoded2$Age_Group, 
+                                      levels = c("18-25", "26-50", "51-75", "> 75"))
+
+ggplot(unique_df_encoded2, aes(Ethnicity)) + geom_bar(aes(fill=Age_Group), position = position_fill(reverse = TRUE)) + scale_y_continuous(labels=scales::percent)+ labs(y="Percentage distribution", x="Ethnicity", title = "Overall age distribution of various ethnic groups")+  scale_fill_viridis_d()+ guides(fill = guide_legend(reverse = TRUE))
+```
+
+The stacked bar chart serves as an illustration of how to comprehend the distribution of people from various ethnicities in various age groups. The majority of people in the 18–25 age bracket are Chinese and Filipino. In the 25–50 age range, Asian Indians make up the majority. In the age range of 51 - 75, the Vietnamese have a substantial population. Koreans often occupy the most space among those who are older than 75. As was seen in the previous graph, it is clear from this one as well that there are the most immigrants in the 25–50 age range.
+
+## Does the duration of residency in the US have any impact on people’s income?
+
+```{r, fig.width = 6, fig.height = 4}
+# Plot 3
+df3 <- data %>% drop_na("Duration of Residency", "Income", "Occupation", "US Born")
+df3 <- subset(df3, Occupation != 0)
+df3$`Duration of Residency` <- as.numeric((df3$`Duration of Residency`))
+ggplot(df3, aes(x= `Duration of Residency`, y=Income, color=Occupation)) + geom_point() + facet_grid(~ `US Born`)+ggtitle("Income v/s Occupation v/s Duration of Residency")
+```
+
+The level of income earned by different occupations has a significant impact on living quality. Given that the majority of the survey respondents are non-natives, two key criteria that may affect someone in this salary category are whether or not they were born in the US and how long they have been there. An obvious observation is that there are a greater number of people who aren’t US born and the minimum number of years for residency for a US-born is 15 years. The percentage of US citizens with salaries of $70,000 or more is higher among those who were born there, and they also tend to have more years of residency on average than non-citizens.
+Business owners and professionals typically earn the greatest salaries among abroad born. Those who work as managers, executives & officials, and business owners make the greatest salaries among non-US citizens.
+
+## How good is Austin to live based on different living criteria?
+```{r}
+# Plot 4
+cols4 <- c("Place to Live", "Raising Children", "Place to Work", "Small Businesses", "Place to Retire", 
+            "Arts and Culture", "Safety", "Traffic")
+
+df4 <- data %>% drop_na("Place to Live", "Raising Children", "Place to Work", "Small Businesses", "Place to Retire", 
+            "Arts and Culture", "Safety", "Traffic")
+
+plot4 <- pivot_longer(df4, cols = cols4, names_to = "Living_Criteria" , values_to = "Rating", values_drop_na = TRUE)
+
+plot4_summary <- plot4[c("Living_Criteria", "Rating")] %>% 
+  group_by(Living_Criteria, Rating) %>% 
+  count(name = 'n_ratings') %>% 
+  group_by(Living_Criteria) %>% 
+  mutate(percent_rating = n_ratings/sum(n_ratings)) %>% 
+  ungroup() %>% 
+  mutate(percentage_rating_label = percent(percent_rating, accuracy = 1))
+
+
+
+
+
+plot4_summary_diverging <- subset(plot4_summary, Rating != 33) %>%
+  mutate(percent_rating = if_else(Rating %in% c("Excellent", "Good"), percent_rating, -percent_rating)) %>% 
+  mutate(percent_rating_label = percent(percent_rating, accuracy = 1))
+
+plot4_summary_diverging_good_labels <- plot4_summary_diverging %>%
+  mutate(percent_rating_label = abs(percent_rating)) %>% 
+  mutate(percent_rating_label = percent(percent_rating_label, accuracy = 1))
+
+plot4_summary_diverging_right_order <- plot4_summary_diverging_good_labels %>% 
+  mutate(Rating = fct_relevel(Rating,
+                               "Fair", "Poor", "Good", "Excellent"),
+         Rating = fct_rev(Rating)) 
+
+plot4_summary_diverging_right_order %>%
+  ggplot(aes(x = Living_Criteria, 
+             y = percent_rating,
+             fill = Rating)) +
+  xlab("Living criteria") +
+  geom_col() +
+  geom_text(aes(label = percent_rating_label),
+            position = position_stack(vjust = 0.5),
+            color = "white",
+            fontface = "bold") +
+  coord_flip() +
+  scale_x_discrete() +
+  #scale_fill_viridis_d(breaks = c("Poor", "Fair", "Good", "Excellent")) +
+  scale_fill_manual(breaks = c("Poor", "Fair", "Good", "Excellent"),
+                    values = c(
+                      "Poor" = "darkorange3",
+                      "Fair" = "orange",
+                      "Good" = "deepskyblue",
+                      "Excellent" = "deepskyblue4"
+                    )) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        panel.grid = element_blank(),
+        legend.position = "top")
+
+```
+
+It is crucial to evaluate whether Austin, Texas—in particular—is a decent place to live based on several living characteristics if one is thinking about moving there. The following factors are taken into account in the graph across all age groups: a place to live, a place to raise children, a place to work, small businesses, a place to retire, a place for arts and culture, safety, and traffic. This figure uses a diverging stacked bar chart because it clearly distinguishes between the good and the bad side.
+The first observation is that most people consider Austin, Texas to be a good place to live based on the fact that maximum number of people are among the good region. 
+
+In general, people think Austin is a decent city for safety, employment opportunities, and living conditions. It is regarded as a top-notch location for living, working, and raising a family. We can thus conclude that Austin is a good place in terms of place to live and work because there is overlap between the good and excellent on these terms. Even if the majority of people think the city is a great location to live, there are some that don't. Most residents believe that traffic is a significant problem and makes life challenging. Others believe that Austin lacks a strong arts and culture scene and isn't a suitable place to retire.
+
+## Are all combinations of marital status, type of house owned and rental situation equally represented?
+
+```{r, fig.width=10, fig.height=6}
+# Plot 5
+
+df5 <- data %>% drop_na("Housing", "Status of Ownership","Marital Status" )
+
+df5 <- df5[c("Marital Status","Housing", "Status of Ownership" )]
+
+df5 <- subset(df5, Housing!=6 & Housing!=5)
+df5 <- subset(df5, `Status of Ownership` != 3)
+
+fluctile(table(df5),just = "lb" ,tile.col = "red", bg.col = "black" ,tile.border = "yellow")
+
+
+```
+
+The graphic shows the frequency of various combinations of housing type, ownership status (rental or ownership), and marital status. The motive behind this plot is to determine the largest combination. Among all possible combinations the ones who are married occupy a larger chunk showing that those who are married stay in an own one family house. The second most occupied in the combination are the married couple who stay in a rented Apartment/ Townhouse/ Condominium. It can be observed that like the married the singles also prefer to stay either in an owned one family house or a rented Apartment/ Townhouse/ Condominium. The other combinations have few very data.
+
+## Does satisfaction in life depend on relationships with family, close friends and acquaintances?
+
+```{r,fig.height=4, fig.width=9}
+# Plot 6
+
+df6 <- data %>% drop_na('Family', 'Close Friend', 'Acquaintances', 'Gender', 'Satisfied With Life 1')
+cols6 <- c('Family', 'Close Friend', 'Acquaintances')
+
+plot6 <- pivot_longer(df6, cols = cols6, names_to = "Relationship" , values_to = "Yes/No")
+
+plot6$`Satisfied With Life 1` <- factor(plot6$`Satisfied With Life 1`, levels = c("Strongly agree", "Agree", "Slightly agree", "Neither agree or disagree","Slightly disagree", "Disagree", "Strongly disagree"))
+
+# %>% filter(`Yes/No` == 'Yes')
+# rows = vars(Yes/No), cols = vars(Gender)
+
+ggplot(plot6 %>% filter(`Yes/No` != 3)) +
+  geom_bar(aes(x = Relationship, 
+               fill = `Satisfied With Life 1`),position = "dodge") +
+             facet_grid(`Yes/No` ~ Gender) +
+  labs(title = "Gender v/s Is Close Blood Relation v/s Relationship v/s Satisfiability with life") +
+  scale_fill_brewer(palette = "Set1")
+
+```
+Human satisfaction is largely derived from relationships with family, friends, and acquaintances rather than purely worldly things. It makes more sense to have a plot where the residents' level of life happiness is determined on whether or not they have family, friends, and acquaintances. 
+Depending on the respondent's gender, the satisfaction may vary because of the range of feelings and connections they experience. The majority of respondents, on average, lack friends, family, and acquaintances and appear to be content with their life. Male and female respondents who had no acquaintances or friends were often the most content with their lives.
+
+
+Among those with family, friends and acquaintances the ones with family seem to the most satisfied under males and females. Overall, very few people express dissatisfaction, and men and women often follow a similar pattern.
+
+## Does the mental health issue being faced by people in a particular age bracket influence the preferred health service?
+
+```{r}
+# Plot 7
+df7 <- data %>% drop_na('Psychiatrist', 'General Practitioner','Therapist/Counselor', 'Religious Leader', 
+                        'Weakness','Shame','Disappointment','Disclosure','Antidepressants', 'Age')
+df7 <- apply(df7, 2, find_and_encode)
+df7 <- as.data.frame(df7)
+
+df7 <- df7 %>% 
+  mutate(
+    # Create categories
+    Age_Group = dplyr::case_when(
+      Age <= 25            ~ "18-25",
+      Age > 25 & Age <= 50 ~ "26-50",
+      Age > 50 & Age <= 75 ~ "51-75",
+      Age > 75             ~ "> 75"
+    ),
+    # Convert to factor
+    Age_Group = factor(
+      Age_Group,
+      level = c("18-25", "26-50","51-75", "> 75")
+    )
+  )
+
+cols7a <- c('Psychiatrist', 'General Practitioner','Therapist/Counselor', 'Religious Leader')
+cols7b <- c('Weakness','Shame','Disappointment','Disclosure','Antidepressants')
+
+
+plot7 <- pivot_longer(df7, cols = cols7a, names_to = "Available Mental Health Services" , values_to = "MHS Yes/No")
+plot7 <- pivot_longer(plot7, cols = cols7b, names_to = "Prevailing Mental Issues" , values_to = "MI Yes/No")
+
+plot7 <- plot7 %>% filter(`MHS Yes/No` == 1 & `MI Yes/No` == 1)
+
+counts7 <- plot7[c("Age_Group", "Prevailing Mental Issues", "Available Mental Health Services")] %>% group_by(`Age_Group`, `Prevailing Mental Issues`, `Available Mental Health Services`) %>% 
+  summarise(Freq = n()) %>% 
+  ungroup() %>% 
+  complete(`Age_Group`, `Prevailing Mental Issues`, `Available Mental Health Services`, fill = list(Freq = 0))
+
+names(counts7) <- c("Age_Group", "Prevailing Mental Issues", "Available Mental Health Services", "Freq")
+
+counts7$Age_Group = factor(counts7$Age_Group, levels = c("18-25", "26-50", "51-75", "> 75"))
+
+ggplot(counts7, aes(axis1 = Age_Group, axis2 = `Prevailing Mental Issues`, axis3 = `Available Mental Health Services`, y = Freq)) +
+  geom_alluvium(aes(fill = Age_Group), color='black') +
+  geom_stratum() +
+  geom_text(stat = "stratum", aes(label = paste(after_stat(stratum), "\n", after_stat(count)))) + scale_x_discrete(limits = c("Age_Group","Prevailing Mental Issues", "Available Mental Health Services")) +
+  labs(y = "Frequency")
+  
+
+```
+
+A decent place to live and a high quality of life are frequently also characterized by the amenities that are easily accessible to the populace. To lead a life, it is important for people of all ages to be mentally healthy and at peace. Since many people experience mental pressure and need some direction, such facilities were examined in the alluvial plot. The analysis is carried out to determine the prevalence of each type of mental illness among people and the services that are sought by those individuals.
+
+The majority of people between the ages of 25-50 and 51-75 have mental health disorders, with depression being the most common problem, followed by weakness and problems disclosing their condition. Most people who experience weakness are in the 25–50 age range. The majority of people who experience any metal health concern look for a general practitioner's help. Most respondents in the age range between 18-25 do not seek religious help and those in the 25–50 & 51–75 age ranges are more likely to seek religious therapies.
+
+## Are people “really” discriminated based on their familiarity with America and their fluency in English?
+
+```{r, fig.width=8, fig.height=3}
+# Plot 8
+df8 <- data %>% drop_na("English Speaking", "Familiarity with America","Discrimination")
+
+df8$English_Speaking_Rating[df8$`English Speaking` == "Not at all"] <- 1
+df8$English_Speaking_Rating[df8$`English Speaking` == "Not well"] <- 2
+df8$English_Speaking_Rating[df8$`English Speaking` == "Well"] <- 3
+df8$English_Speaking_Rating[df8$`English Speaking` == "Very well"] <- 4
+
+df8$Familiarity_with_America_Rating[df8$`Familiarity with America` == "Very low"] <- 1
+df8$Familiarity_with_America_Rating[df8$`Familiarity with America` == "Low"] <- 2
+df8$Familiarity_with_America_Rating[df8$`Familiarity with America` == "High"] <- 3
+df8$Familiarity_with_America_Rating[df8$`Familiarity with America` == "Very high"] <- 4
+
+df8$English_Speaking_Rating = df8$`English Speaking`
+df8$Familiarity_with_America_Rating = df8$`Familiarity with America`
+
+
+
+cols8 <- c("English Speaking", "Familiarity with America")
+
+# plot8 <- pivot_longer(df8, cols = cols8, names_to = "" , values_to = "")
+
+counts8 <- df8[c("English_Speaking_Rating", "Familiarity_with_America_Rating","Discrimination")] %>% group_by(`English_Speaking_Rating`, `Familiarity_with_America_Rating`,`Discrimination`) %>% 
+  summarise(Freq = n()) %>% 
+  ungroup() %>% 
+  complete(`English_Speaking_Rating`, `Familiarity_with_America_Rating`,`Discrimination`, fill = list(Freq = 0))
+
+names(counts8) <- c("English_Speaking", "Familiarity_with_America","Discrimination", "Freq")
+
+counts8$`English_Speaking` = factor(counts8$`English_Speaking`, levels = c("Not at all", "Not well", "Well", "Very well"))
+counts8$`Familiarity_with_America` = factor(counts8$`Familiarity_with_America`, levels = c("Very low", "Low", "High", "Very high"))
+
+mosaic(Discrimination ~  English_Speaking + Familiarity_with_America , data = counts8, direction = c("v", "v", "h"),
+       labeling_args = list(rot_labels = c(00, 90, 90, 90)),
+       labeling = labeling_border(abbreviate_labs = c(FALSE, 3, FALSE)),
+       main = "Discrimination v/s Familiarity with America & English Speaking")
+
+```
+Discrimination occurs everywhere, and the fact that the respondents are immigrants and frequently have little knowledge of the United States or its language makes it important to plot it and observe. Thus, analysis is done to determine whether knowledge of the language and familiarity with America can contribute to discrimination.
+
+The majority of the respondents do not appear to have experienced any types of discrimination based on if they speak English and on how familiar they are with US. In actuality, the least discriminated against are those who have no familiarity with America and do not speak English. The majority of the respondents appear to be proficient in English. It can be seen that among those who experience discrimination, those who speak very good English and are more familiar with America tend to experience discrimination more frequently than those who are less familiar with America and don't speak good English or those who speak very good English and are very familiar with it.
+
+## Does a diseased person opt for health insurance in order to undergo a physical checkup?
+
+```{r}
+# Plot 9
+
+df9 <- data.frame(data, check.names=FALSE)
+
+cols9 = c('Hypertension',	'Heart Disease',	'Stroke',	'Diabetes',	'Cancer',	'Arthritis', 'Hepatitis',	'Kidney Problem',	'Asthma',	'COPD')
+
+df9$`Heart Disease` <- as.character((df9$`Heart Disease`))
+df9$`Stroke` <- as.character((df9$`Stroke`))
+df9$`Cancer` <- as.character((df9$`Cancer`))
+df9$`Hepatitis` <- as.character((df9$`Hepatitis`))
+df9$`Kidney Problem` <- as.character((df9$`Kidney Problem`))
+df9$`Asthma` <- as.character((df9$`Asthma`))
+df9$`COPD` <- as.character((df9$`COPD`))
+
+data_disease<-df9 %>% pivot_longer(cols=cols9, names_to='Disease',
+         values_to='Disease_exists',  values_drop_na = TRUE)
+
+
+data_disease <- subset(data_disease, Disease_exists != 0 )
+
+counts9 <- data_disease[c("Disease", "Health Insurance", "Physical Check-up")] %>% group_by(Disease, `Health Insurance`, `Physical Check-up`) %>% 
+  summarise(Freq = n()) %>% 
+  ungroup() %>% 
+  complete(Disease, `Health Insurance`, `Physical Check-up`, fill = list(Freq = 0))
+
+names(counts9) <- c("Disease", "Health Insurance", "Physical Check-up", "Freq")
+
+ggplot(counts9, aes(axis1 = Disease, axis2 = `Health Insurance`, axis3 = `Physical Check-up`, y = Freq)) +
+  geom_alluvium(aes(fill=Disease)) +
+  geom_stratum() +   
+  geom_text(stat = "stratum", aes(label = paste(after_stat(stratum), "\n", after_stat(count)))) + scale_x_discrete(limits = c("Disease", "Health Insurance", "Physical Check-up")) +
+  labs(y = "Frequency")
+
+
+```
+
+Plot 9 examines current illnesses, insurance coverage, and physical examinations. The goal of this plot is to determine whether or not the respondents use the various amenities that have been made available to them. The motive is attempting to identify individuals who use health insurance by going to the doctor for a physical health check-up. Most significantly, people who have a prevalent sickness should be taking a health insurance to protect themselves.
+
+The majority of responders have problems with hypertension, and it is evident that almost all of them have insurance, allowing utilizing the services offered. Only a tiny minority of those with insurance do not consider physical check-up, yet the majority regularly check their health. Half of individuals without insurance choose to undergo a physical examination, and half do not.
+
+## Do people prefer to own a house as they consider living in the US for a longer amount of time?
+
+```{r, fig.width = 6, fig.height = 4}
+# Plot 10
+df10 <- data %>% drop_na("Ethnicity", "Duration of Residency", "Status of Ownership")
+df10 <- subset(df10, `Status of Ownership` != 3)
+ggplot(df10, aes(x = `Duration of Residency`, y = factor(Ethnicity, levels=c("Vietnamese","Korean","Asian Indian","Other","Filipino","Chinese")))) +
+  geom_point(size = 3, aes(colour = `Status of Ownership`)) +  # Use a larger dot
+  theme_bw() +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_line(colour = "grey60", linetype = "dashed")
+  ) +
+  ylab("Ethnicity") + ggtitle("Ethicity v/s Duration of Residency v/s Status of Ownership")
+
+```
+
+A plot that could give us a picture of which ethnic groups are the most successful in settling will give an idea about the utilities made use of and taken advantage of in proceeding to owning a house for themselves. The plot shows the status of ownership for different ethnic groups based on their duration of residency. An obvious generalization is that the likelihood of obtaining an own home increase with the length of residency. The same is depicted in the plot as well. Those who have lived there for more than 15 to 20 years own a home, whereas those who have only lived there for 10 years or less tend to live in rental properties. Additionally, it's clear that Chinese and Filipino people have owned homes more quickly than people of other groups.
+
+```{r}
+# Preparing data for d3 plot
+
+d3_data <- data.frame(data, check.names = FALSE)
+
+d3_data <- d3_data %>% drop_na("Quality of Life", "Duration of Residency", "Ethnicity", ) %>% 
+  mutate(
+    # Create categories
+    `Quality_of_Life` = dplyr::case_when(
+      `Quality of Life` <= 3            ~ "Poor",
+      `Quality of Life` > 3 & `Quality of Life` <= 6 ~ "Fair",
+      `Quality of Life` > 6  & `Quality of Life` < 9 ~ "Good",
+      `Quality of Life` >=9             ~ "Excellent"
+    ),
+    # Convert to factor
+    Quality_of_Life = factor(
+      Quality_of_Life,
+      level = c("Poor", "Fair","Good", "Excellent")
+    )
+  )
+
+d3_data <- d3_data %>% group_by(`Quality_of_Life`, Ethnicity) %>% mutate(Count = n()) %>% ungroup()
+d3_data <- d3_data[c("Duration of Residency", "Quality_of_Life", "Ethnicity", "Count")]
+names(d3_data) <- c("Duration_of_Residency", "Quality_of_Life", "Ethnicity", "Count")
+d3_data$Quality_of_Life <- factor(d3_data$Quality_of_Life, levels = c("Poor", "Fair", "Good", "Excellent"))
+d3_data$Duration_of_Residency <- round(d3_data$Duration_of_Residency)
+
+# write.csv(d3_data, "/Users/gokul/Desktop/data.csv", row.names = FALSE )
+
+```
+
+
+

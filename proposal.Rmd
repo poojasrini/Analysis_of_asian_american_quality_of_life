@@ -1,0 +1,36 @@
+# Proposal
+
+## Research topic
+
+The topic chosen is “Analysis of Asian American Quality of Life (AAQoL)”. Asian Americans are people from Far East, Southeast Asia, or the Indian subcontinent. Their population has been growing steadily throughout the years to the point that they now contribute to the US population. Thus, it has become clear that researching this rapid proliferation will help us better comprehend the current causes and future expansion. One such reason is the social and health needs of the Asian American community which is exactly what the project aims to explore through the data. The satisfaction of the quality of life, the expectation in near future, the challenges and the concerns are to be studied through this project. 
+
+The main challenge in the research could be in the process of data collection i.e the language barrier. However, this has been smoothly taken care of by conduction the survey in 8 different languages (English, traditional Chinese, simplified Chinese, Korean, Vietnamese, Hindi, Gujarati, and Tagalog) from which the data has been extracted for analysis. This makes the research more comprehensive and the information to be accessible even from the natives who may not know English but have lived in the US to better understand their concerns and the government's role in promoting their well being.
+
+## Data availability
+
+The data “Asian American Quality of Life (AAQoL)” used in this project has been acquired from https://catalog.data.gov/dataset/final-report-of-the-asian-american-quality-of-life-aaqol in JSON format whose source is https://data.austintexas.gov/. The data was last updated on November 29, 2021. Every year, a survey is undertaken to collect data, and analysis is then done to update the data. This results in a yearly update of the data. Since the data is available in JSON format in the original source, it is intended to be imported using read_json function from base R.
+
+The dataset consists of 231 feature columns and 2610 rows of data collected from each person who answered the AAQoL survey on their quality of life in Austin. The survey was approved by the University of Texas at Austin Institutional Review Board (IRB). The questionnaire design included multiple sections answering various sociodemographic information, immigration, health status, use of health services, family and social resources, emotional well-being and quality of life, neighborhood and community resources, and awareness of/utilization of/satisfaction with city services. The AAQoL Commission members and employees from 15 city departments, including the Office of Innovation, Emergency Medical Services, Park and Recreation Department, Health and Human Services, Austin Resource Recovery, Office of Sustainability, and Communications and Public Information Office, reviewed and approved the draft questionnaire. Upon refinement and translation, each language version was pilot tested and their feedback was incorporated into the final version. Self-administered surveys were then conducted and the data was collected. This project's analysis is based on the data mentioned above.
+
+The data consists of numerical and categorical data. Some of the categorical data are ordinal in nature.
+
+The contents of the data briefly are as follows:
+
+```{r, echo = FALSE}
+table=matrix(NA, nrow=6 , ncol=2)
+
+colnames(table) = c('Section', 'Question')
+
+table[1, ] = c('Demographic information', 'Age, Gender, Ethinicity, Marital Status, Education, Livin arrangement, Religious affliations, Employment, Occupation, Income, Achieving ends meet')
+table[2, ] = c('Immigration and Culture', 'Nativity, Length of residency in US, Primary language, English proficiency, Familiarity with culture & ethinic origin, Ethnic identity, Sense of belonging, Discrimination')
+table[3, ] = c('Health', 'Present health - mentally, orally, Hygiene assistance, Healthy activity, Chronic disease, Health care, Insurance, Needs met & other utilities')
+table[4, ] = c('Social, family and community sources', 'Social network, Involvement with family & friends, Religious involvement, Community social cohesion')
+table[5, ] = c('Emotional well being', 'Mental distress, Satisfaction with life, Anxiety, Mental health service use, Mental health awareness')
+table[6, ] = c('Life in the city', 'Awareness/utilization/satisfaction, housing type/ownership/satisfaction, Transportation, computer & internet access, mobile devices, civic engagement, concerns in the city')
+
+
+library(knitr)
+kable(table)
+
+```
+
